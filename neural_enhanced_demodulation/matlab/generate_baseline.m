@@ -40,16 +40,19 @@ for BW=BW_list
             end
             raw_data_name_components = strsplit(feature_data_name(1:end-4),'_');
             
-            if (( ~ismember(str2num(raw_data_name_components{2}), SNR_list) || ~ismember(str2num(raw_data_name_components{5}), batch_list))
+            if ( ~ismember(str2num(raw_data_name_components{2}), SNR_list) || ~ismember(str2num(raw_data_name_components{5}), batch_list))
                 continue;
             end
             
             SNR_index=str2num(raw_data_name_components{2})-SNR_minimal+1;
+
             load([feature_dir,feature_data_name]);
+
             chirp_dechirp = chirp .* chirp_down;
             
             chirp_fft_raw =(fft(chirp_dechirp, nsamp*upsamping_factor));
             
+            % 混叠效应
             if abs_decode
                 chirp_peak_overlap=abs(chirp_abs_alias(chirp_fft_raw, Fs/BW));
             else

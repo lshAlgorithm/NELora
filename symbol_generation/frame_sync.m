@@ -19,6 +19,7 @@ function [outsig, t_offset,f_offset] = frame_sync(frame_sig, DEBUG)
     
     % % dechirp
     [~,rz] = chirp_dchirp_fft(up_pre,nfft);
+    % 手动将两个不同频率处的波峰在频域叠加，以确保整个Chirp信号的能量得到集中
     rz = chirp_comp_alias(rz, over_rate);
     up_az = abs(rz);
     [~,peak_i] = max(up_az);

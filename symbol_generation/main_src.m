@@ -14,30 +14,31 @@ frame_len = 26 * nsamp;
 fileID = fopen('input/pt2', 'r');
 pre_data = io_read_line(fileID, 8*nsamp); % read 8 chirps 
 
-
 ex = 1;         % number of packets 
 instance = 1;
 
 while ~isempty(pre_data) && ex < 2
     % % Combining with pre_data for detection
     data = [pre_data, io_read_line(fileID, frame_len)];
-    
+    % has 1114112 columns, data with imaginary numbers
+
     % % Packet Detection
     % %---detecting by concentrating energy of preamble chirps---
-    [frame_sign, frame_st] = frame_detect(data);
+    % [frame_sign, frame_st] = frame_detect(data);
+
     % %---detecting by searching repeated peaks of preamble chirps---
-    % [frame_sign, frame_st] = frame_detect2(data, 8);
+    [frame_sign, frame_st] = frame_detect2(data, 8);
     
-    if frame_sign
+    if frame_sign   % if the signal is LoRa
         raw = [data(frame_st:end), io_read_line(fileID, frame_st + nsamp)];
-        pre_data = raw(end - 8*nsamp + 1 : end);
+        pre_data = raw(end - 8*nsamp + 1 : end);    % from scratch
     
         [sig_raw, to, cfo] = frame_sync(raw);
         t = (0:numel(sig_raw)-1)/Fs;
         sig = sig_raw .* exp(-1i*2*pi* cfo * t);
         sig = sig(1:frame_len);
     
-        head_len = 12.25;
+        head_len = 12.25; % Preamble + SFD
         upayload = [sig(1:(head_len-2.25)*nsamp), sig(head_len*nsamp+1:end)];
         rpayload = [sig_raw(1:(head_len-2.25)*nsamp), sig_raw(head_len*nsamp+1:end)];
 
@@ -68,8 +69,9 @@ while ~isempty(pre_data) && ex < 2
             % without CFO
             dcp = chirp_dchirp_fft(symb, nsamp * 10);
             z = chirp_comp_alias(dcp, Fs/BW);        
-            fidx = (0:numel(z)-1)/numel(z) * BW;
-            [ma, I] = max(abs(z));
+            fidx = (0:numel(z)-1)/numel(z) * BW;    % 频谱峰值对应的频率偏移量->即数据
+            [ma, I] = max(abs(z));  % I即为数据
+            % 将I转换为符号状态空间中的位置
             value = mod((I / numel(z) * 2^SF), 2^SF);
             fprintf("Window[%d] freq = %.2f, value = %.2f, peak = %.2f\n", i, fidx(I), value, ma);
             % write file

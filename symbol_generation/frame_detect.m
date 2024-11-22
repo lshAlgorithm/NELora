@@ -4,24 +4,28 @@ function [frame_sign, frame_st] = frame_detect(datain)
     Fs = param_configs(3);         % sample rate        
     BW = param_configs(2);         % LoRa bandwidth
     SF = param_configs(1);         % LoRa spreading factor
-    nsamp = Fs * 2^SF / BW;
+    nsamp = Fs * 2^SF / BW;        % number of samples of a *chirp*
     prb_len = 4;
     
     % if datain too short
     frame_sign = false;
     frame_st = -1;
-    if length(datain) < 8 * nsamp
+    if length(datain) < 8 * nsamp   %data is too short, may be noise
         return;
     end
     
     nfft = nsamp;
     nwins = floor(length(datain) / nsamp);
-    res_ft = zeros(nwins, nfft);
+    res_ft = zeros(nwins, nfft);    % output after fft to each chirp
     for i = 1:nwins
 %         fprintf('--- window%d ---\n',i);
         symb = datain((i-1)*nsamp + (1:nsamp));
+
+        % ================= Core process =================
         dcp_symb = symb .* Utils.gen_symbol(0,true);
         res_ft(i,:) = fft(dcp_symb, nfft);
+        % ================================================
+
         % detect a frame with at least 4 symbols
         if i < prb_len
             continue;
@@ -34,7 +38,8 @@ function [frame_sign, frame_st] = frame_detect(datain)
         for ii = 0:step:1-step
             acc_ft = zeros(1,nfft);
             for win_idx = i-prb_len+1:i
-%                 acc_ft = acc_ft + res_ft(win_idx,:) * exp(1i*2*pi*ii*win_idx);
+                % `480e6*ii*win_idx` is about carrier, to find the expected chirp signal
+                % cross-correlation function
                   acc_ft = acc_ft + res_ft(win_idx,:) * exp(1i*2*pi*(BW/(1+ii)*win_idx^2 + 480e6*ii*win_idx));
             end
             [ma, I] = max(abs(acc_ft));
